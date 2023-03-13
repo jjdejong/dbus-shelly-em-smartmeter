@@ -143,31 +143,31 @@ class DbusShellyemService:
        #send data to DBus
        self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][MeterNo]['voltage']
        current = meter_data['emeters'][MeterNo]['power'] / meter_data['emeters'][MeterNo]['voltage']
+       if customname = config['DEFAULT']['CustomName'] == 'L1':
+          self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][MeterNo]['power']
+          self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total']/1000)
+          self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
+       else: # L2
+          current = -current
+          self._dbusservice['/Ac/L1/Power'] = -meter_data['emeters'][MeterNo]['power']
+          self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
+          self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total']/1000)
        self._dbusservice['/Ac/L1/Current'] = current
-       self._dbusservice['/Ac/L2/Current'] = -current
        self._dbusservice['/Ac/Current'] = current
-       self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][MeterNo]['power']
-       self._dbusservice['/Ac/L2/Power'] = -meter_data['emeters'][MeterNo]['power']
        if meter_data['emeters'][MeterNo]['power'] != 0:
           self._dbusservice['/Ac/Power'] = self._dbusservice['/Ac/L1/Power']
        else:
           self._dbusservice['/Ac/L1/Voltage'] = 0
           self._dbusservice['/Ac/L1/Current'] = 0
-          self._dbusservice['/Ac/L2/Current'] = 0
           self._dbusservice['/Ac/L1/Power'] = 0
-          self._dbusservice['/Ac/L2/Power'] = 0
           self._dbusservice['/Ac/L1/Energy/Forward'] = 0
-          self._dbusservice['/Ac/L2/Energy/Forward'] = 0
-       self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total']/1000)
-       self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
-       self._dbusservice['/Ac/L2/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
        self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
        self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse']
 
        #logging
        logging.debug("Consumption (/Ac/Power): %s" % (self._dbusservice['/Ac/Power']))
        logging.debug("Forward (/Ac/Energy/Forward): %s" % (self._dbusservice['/Ac/Energy/Forward']))
-       logging.debug("Reverse (/Ac/Energy/Revers): %s" % (self._dbusservice['/Ac/Energy/Reverse']))
+       logging.debug("Reverse (/Ac/Energy/Reverse): %s" % (self._dbusservice['/Ac/Energy/Reverse']))
        logging.debug("---");
 
        # increment UpdateIndex - to show that new data is available
@@ -230,12 +230,9 @@ def main():
           '/Ac/Voltage': {'initial': 0, 'textformat': _v},
           '/Ac/L1/Voltage': {'initial': 0, 'textformat': _v},
           '/Ac/L1/Current': {'initial': 0, 'textformat': _a},
-          '/Ac/L2/Current': {'initial': 0, 'textformat': _a},
           '/Ac/L1/Power': {'initial': 0, 'textformat': _w},
-          '/Ac/L2/Power': {'initial': 0, 'textformat': _w},
           '/Ac/L1/Energy/Forward': {'initial': None, 'textformat': _kwh},
           '/Ac/L1/Energy/Reverse': {'initial': None, 'textformat': _kwh},
-          '/Ac/L2/Energy/Forward': {'initial': None, 'textformat': _kwh},
         })
 
       logging.info('Connected to dbus, and switching over to gobject.MainLoop() (= event based)')
