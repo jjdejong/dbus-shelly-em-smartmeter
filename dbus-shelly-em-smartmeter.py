@@ -143,7 +143,7 @@ class DbusShellyemService:
        #send data to DBus
        self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][MeterNo]['voltage']
        current = meter_data['emeters'][MeterNo]['power'] / meter_data['emeters'][MeterNo]['voltage']
-       if customname = config['DEFAULT']['CustomName'] == 'L1':
+       if config['DEFAULT']['Phase'] == 'L1':
           self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][MeterNo]['power']
           self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total']/1000)
           self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
