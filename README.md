@@ -48,12 +48,12 @@ Thats it 😄
 
 ## Install & Configuration
 ### Get the code
-Just grap a copy of the main branch and copy them to a folder under `/data/` e.g. `/data/dbus-shelly-em-pvinverter-grid`.
+Just grab a copy of the main branch and copy them to a folder under `/data/` e.g. `/data/dbus-shelly-em-pvinverter-grid`.
 After that call the install.sh script. Create a separate copy for each instance (eg for both inputs of Shelly EM).
 
 The following script should do everything for you:
 ```
-wget https://github.com/tonythesticks/dbus-shelly-em-smartmeter/archive/refs/heads/main.zip
+wget https://github.com/jjdejong/dbus-shelly-em-smartmeter/archive/refs/heads/main.zip
 unzip main.zip "dbus-shelly-em-smartmeter-main/*" -d /data
 mv /data/dbus-shelly-em-smartmeter-main /data/dbus-shelly-em-smartmeter-grid
 chmod a+x /data/dbus-shelly-em-smartmeter-grid/install.sh
@@ -66,7 +66,7 @@ rm main.zip
 ```
 
 
-⚠️ Check configuration after that - because service is already installed an running and with wrong connection data (host, username, pwd) you will spam the log-file
+⚠️ Check configuration after that - because service is already installed and running and with wrong connection data (host, username, pwd) you will spam the log-file
 
 ### Change config.ini
 Within the project there is a file `/data/dbus-shelly-em-smartmeter/config.ini` - just change the values - most important is the deviceinstance, custom name and phase under "DEFAULT" and host, username and password in section "ONPREMISE". More details below:
