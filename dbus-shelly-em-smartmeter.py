@@ -46,7 +46,8 @@ class DbusShellyemService:
     self._dbusservice.add_path('/HardwareVersion', 0)
     self._dbusservice.add_path('/Connected', 1)
     self._dbusservice.add_path('/Role', 'grid')
-    self._dbusservice.add_path('/Position', 0) # normaly only needed for pvinverter
+    self._dbusservice.add_path('/Position', config['DEFAULT']['Position']) # normaly only needed for pvinverter
+    self._dbusservice.add_path('/Ac/MaxPower', config['DEFAULT']['MaxPower']) # only needed for pvinverter
     self._dbusservice.add_path('/Serial', self._getShellySerial())
     self._dbusservice.add_path('/UpdateIndex', 0)
 
@@ -153,7 +154,6 @@ class DbusShellyemService:
           self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
           self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total']/1000)
        self._dbusservice['/Ac/L1/Current'] = current
-       self._dbusservice['/Ac/Current'] = current
        if meter_data['emeters'][MeterNo]['power'] != 0:
           self._dbusservice['/Ac/Power'] = self._dbusservice['/Ac/L1/Power']
        else:
@@ -226,8 +226,6 @@ def main():
           '/Ac/Energy/Forward': {'initial': None, 'textformat': _kwh}, # energy bought from the grid
           '/Ac/Energy/Reverse': {'initial': None, 'textformat': _kwh}, # energy sold to the grid
           '/Ac/Power': {'initial': 0, 'textformat': _w},
-          '/Ac/Current': {'initial': 0, 'textformat': _a},
-          '/Ac/Voltage': {'initial': 0, 'textformat': _v},
           '/Ac/L1/Voltage': {'initial': 0, 'textformat': _v},
           '/Ac/L1/Current': {'initial': 0, 'textformat': _a},
           '/Ac/L1/Power': {'initial': 0, 'textformat': _w},
