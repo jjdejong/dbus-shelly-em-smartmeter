@@ -38,14 +38,14 @@ class DbusShellyemService:
     # Create the mandatory objects
     self._dbusservice.add_path('/DeviceInstance', deviceinstance)
     self._dbusservice.add_path('/ProductId', 0xB023) # id needs to be assigned by Victron Support current value for testing
-    self._dbusservice.add_path('/DeviceType', 345) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Engerie Meter
+    #self._dbusservice.add_path('/DeviceType', 345) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Engerie Meter
     self._dbusservice.add_path('/ProductName', productname)
     self._dbusservice.add_path('/CustomName', customname)
     self._dbusservice.add_path('/Latency', None)
     self._dbusservice.add_path('/FirmwareVersion', 0.1)
     self._dbusservice.add_path('/HardwareVersion', 0)
     self._dbusservice.add_path('/Connected', 1)
-    self._dbusservice.add_path('/Role', 'grid')
+    # self._dbusservice.add_path('/Role', 'grid')
     self._dbusservice.add_path('/Position', config['DEFAULT']['Position']) # normaly only needed for pvinverter
     self._dbusservice.add_path('/Ac/MaxPower', config['DEFAULT']['MaxPower']) # only needed for pvinverter
     self._dbusservice.add_path('/Serial', self._getShellySerial())
@@ -92,7 +92,7 @@ class DbusShellyemService:
 
   def _getMeterNoConfig(self):
         config = self._getconfig()
-        MeterNo = config['DEFAULT']['GridOrPV']
+        MeterNo = config['DEFAULT']['MeterNo']
         return MeterNo
 
   def _getShellyStatusUrl(self):
@@ -144,11 +144,11 @@ class DbusShellyemService:
        #send data to DBus
        self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][MeterNo]['voltage']
        current = meter_data['emeters'][MeterNo]['power'] / meter_data['emeters'][MeterNo]['voltage']
-       if config['DEFAULT']['Phase'] == 'L1':
+       if config['DEFAULT']['GridOrPV'] == 'grid':
           self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][MeterNo]['power']
           self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total']/1000)
           self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
-       else: # L2
+       else: # pvinverter
           current = -current
           self._dbusservice['/Ac/L1/Power'] = -meter_data['emeters'][MeterNo]['power']
           self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
@@ -221,7 +221,7 @@ def main():
       #start our main-service
       GridOrPV = getServiceConfig()
       pvac_output = DbusShellyemService(
-        servicename='com.victronenergy.' + GridOrPV, #grid', #grid or pvinverter
+        servicename='com.victronenergy.' + GridOrPV, #grid or pvinverter
         paths={
           '/Ac/Energy/Forward': {'initial': None, 'textformat': _kwh}, # energy bought from the grid
           '/Ac/Energy/Reverse': {'initial': None, 'textformat': _kwh}, # energy sold to the grid
