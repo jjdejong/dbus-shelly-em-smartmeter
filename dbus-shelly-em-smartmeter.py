@@ -3,6 +3,7 @@
 # import normal packages
 import platform
 import logging
+import logging.handlers
 import sys
 import os
 import sys
@@ -182,13 +183,21 @@ def getServiceConfig():
 
 def main():
   #configure logging
-  logging.basicConfig(      format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                            datefmt='%Y-%m-%d %H:%M:%S',
-                            level=logging.INFO,
-                            handlers=[
-                                logging.FileHandler("%s/current.log" % (os.path.dirname(os.path.realpath(__file__)))),
-                                logging.StreamHandler()
-                            ])
+  log_file = "%s/current.log" % os.path.dirname(os.path.realpath(__file__))
+
+  logging.basicConfig(
+      format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+      datefmt='%Y-%m-%d %H:%M:%S',
+      level=logging.INFO,
+      handlers=[
+          logging.handlers.TimedRotatingFileHandler(
+              log_file,
+              when='midnight',
+              backupCount=30
+          ),
+          logging.StreamHandler()
+      ]
+  )
 
   try:
     logging.info("Start")
