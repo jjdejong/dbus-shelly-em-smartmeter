@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 
 # import normal packages
+from gi.repository import GLib
 import platform
 import logging
 import logging.handlers
 import sys
 import os
-import sys
-if sys.version_info.major == 2:
-  import gobject
-else:
-  from gi.repository import GLib as gobject
-import sys
 import time
 import requests # for http GET
 import configparser # for config/ini file
@@ -20,12 +15,10 @@ import configparser # for config/ini file
 sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/dbus-systemcalc-py/ext/velib_python'))
 from vedbus import VeDbusService
 
-
 class DbusShellyemService:
   def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly EM HTTP JSON service'):
     config = self._getConfig()
     deviceinstance = int(config['DEFAULT']['Deviceinstance'])
-    customname = config['DEFAULT']['CustomName']
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance))
     self._paths = paths
 
@@ -36,21 +29,20 @@ class DbusShellyemService:
     self._dbusservice.add_path('/Mgmt/ProcessVersion', 'Unkown version, and running on Python ' + platform.python_version())
     self._dbusservice.add_path('/Mgmt/Connection', connection)
 
-    # Create the mandatory objects
+    # Create the generic objects
     self._dbusservice.add_path('/DeviceInstance', deviceinstance)
-    self._dbusservice.add_path('/ProductId', 0xB023) # id needs to be assigned by Victron Support current value for testing
-    # self._dbusservice.add_path('/DeviceType', 345) # found on https://www.sascha-curth.de/projekte/005_Color_Control_GX.html#experiment - should be an ET340 Energy Meter
+    self._dbusservice.add_path('/ProductId', 0xB034) # id needs to be assigned by Victron Support current value for testing
     self._dbusservice.add_path('/ProductName', productname)
-    self._dbusservice.add_path('/CustomName', customname)
-    self._dbusservice.add_path('/Latency', None)
+    self._dbusservice.add_path('/CustomName', config['DEFAULT']['CustomName'])
     self._dbusservice.add_path('/FirmwareVersion', 0.1)
     self._dbusservice.add_path('/HardwareVersion', 0)
+    self._dbusservice.add_path('/Serial', self._getShellySerial())
     self._dbusservice.add_path('/Connected', 1)
-    # self._dbusservice.add_path('/Role', 'grid')
+    self._dbusservice.add_path('/Role', 'pvinverter')
+    
+    # Create device specific objects
     self._dbusservice.add_path('/Position', int(config['DEFAULT']['Position'])) # normally only needed for pvinverter
     self._dbusservice.add_path('/Ac/MaxPower', float(config['DEFAULT']['MaxPower'])) # only needed for pvinverter
-    self._dbusservice.add_path('/Serial', self._getShellySerial())
-    self._dbusservice.add_path('/UpdateIndex', 0)
 
     # add path values to dbus
     for path, settings in self._paths.items():
@@ -61,10 +53,10 @@ class DbusShellyemService:
     self._lastUpdate = 0
 
     # add _update function 'timer'
-    gobject.timeout_add(250, self._update) # pause 250ms before the next request
+    GLib.timeout_add(250, self._update) # pause 250ms before the next request
 
     # add _signOfLife 'timer' to get feedback in log every 5minutes
-    gobject.timeout_add(self._getSignOfLifeInterval()*60*1000, self._signOfLife)
+    GLib.timeout_add(self._getSignOfLifeInterval()*60*1000, self._signOfLife)
 
   def _getShellySerial(self):
     meter_data = self._getShellyData()
@@ -139,14 +131,13 @@ class DbusShellyemService:
         self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][MeterNo]['power']
         self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total']/1000)
         self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
-      else: # pvinverter
+      else: # pvinverter, implies CT is connected towards the PV inverter as a load
         current = -current
         self._dbusservice['/Ac/L1/Power'] = -meter_data['emeters'][MeterNo]['power']
         self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total_returned']/1000)
         self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total']/1000)
       self._dbusservice['/Ac/L1/Current'] = current
       self._dbusservice['/Ac/Power'] = self._dbusservice['/Ac/L1/Power']
-      self._dbusservice['/Ac/Current'] = current
       self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
       self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse']
 
@@ -155,12 +146,6 @@ class DbusShellyemService:
       logging.debug("Forward (/Ac/Energy/Forward): %s" % (self._dbusservice['/Ac/Energy/Forward']))
       logging.debug("Reverse (/Ac/Energy/Reverse): %s" % (self._dbusservice['/Ac/Energy/Reverse']))
       logging.debug("---")
-
-      # increment UpdateIndex - to show that new data is available
-      index = self._dbusservice['/UpdateIndex'] + 1  # increment index
-      if index > 255:   # maximum value of the index
-        index = 0       # overflow from 255 to 0
-      self._dbusservice['/UpdateIndex'] = index
 
       #update lastupdate vars
       self._lastUpdate = time.time()
@@ -228,10 +213,11 @@ def main():
         '/Ac/L1/Energy/Reverse': {'initial': None, 'textformat': _kwh},
       })
 
-    logging.info('Connected to dbus, and switching over to gobject.MainLoop() (= event based)')
-    mainloop = gobject.MainLoop()
+    logging.info('Connected to dbus, and switching over to GLib.MainLoop() (= event based)')
+    mainloop = GLib.MainLoop()
     mainloop.run()
   except Exception as e:
     logging.critical('Error at %s', 'main', exc_info=e)
+    
 if __name__ == "__main__":
   main()
