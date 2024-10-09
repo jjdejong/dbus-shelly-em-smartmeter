@@ -18,7 +18,7 @@ from vedbus import VeDbusService
 class DbusShellyemService:
   def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly EM HTTP JSON service'):
     config = self._getConfig()
-    deviceinstance = int(config['DEFAULT'].get('Deviceinstance', 0))
+    deviceinstance = int(config['DEFAULT'].get('Deviceinstance', 40))
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance), register=False)
     self._paths = paths
 
@@ -56,16 +56,16 @@ class DbusShellyemService:
     self._lastUpdate = 0
 
     # add _update function 'timer'
-    GLib.timeout_add(250, self._update) # pause 250ms before the next request
+    GLib.timeout_add(5000, self._update) # pause in ms before the next request
 
     # add _signOfLife 'timer' to get feedback in log every 5 minutes
     GLib.timeout_add(self._getSignOfLifeInterval() * 60 * 1000, self._signOfLife)
 
   def _getShellySerial(self):
     meter_data = self._getShellyData()
-    if not meter_data.get('mac'):
+    serial = meter_data.get('mac', meter_data['sys'].get('mac'))
+    if not serial:
       raise ValueError("Response does not contain 'mac' attribute")
-    serial = meter_data['mac']
     return serial
 
   def _getConfig(self):
@@ -83,7 +83,11 @@ class DbusShellyemService:
     accessType = config['DEFAULT'].get('AccessType', 'OnPremise')
 
     if accessType == 'OnPremise':
-      URL = "http://%s:%s@%s/status" % (config['ONPREMISE'].get('Username', ''), config['ONPREMISE'].get('Password', ''), config['ONPREMISE'].get('Host', ''))
+      URL = "http://%s:%s@%s/" % (config['ONPREMISE'].get('Username', ''), config['ONPREMISE'].get('Password', ''), config['ONPREMISE'].get('Host', 'localhost'))
+      if config['DEVICE'].get('Gen', 1) == 1:
+        URL = URL + 'status'
+      else:
+        URL = URL + 'rpc/Shelly.GetStatus'
       URL = URL.replace(":@", "")
     else:
       raise ValueError("AccessType %s is not supported" % (config['DEFAULT'].get('AccessType')))
@@ -116,20 +120,35 @@ class DbusShellyemService:
       config = self._getConfig()
       MeterNo = int(config['DEFAULT'].get('MeterNo', 0))
 
+      if config['DEVICE'].get('Gen', 1) == 1:
+        voltage = meter_data['emeters'][MeterNo]['voltage']
+        power = meter_data['emeters'][MeterNo]['power']
+        current = power / voltage
+        energy_fwd = (meter_data['emeters'][MeterNo]['total'] / 1000)
+        energy_ret = (meter_data['emeters'][MeterNo]['total_returned'] / 1000)
+      else:
+        # Detect PM or 1PM device
+        d = meter_data.get('pm1:0', meter_data.get('switch:0', None))
+        if d:
+          voltage = d['voltage']
+          current = d['current']
+          power = d['apower']
+          energy_fwd = d['aenergy'].get('total')
+          energy_ret = d.get('ret_aenergy', d['aenergy']).get('total')
+
       # send data to DBus
-      self._dbusservice['/Ac/L1/Voltage'] = meter_data['emeters'][MeterNo]['voltage']
-      current = meter_data['emeters'][MeterNo]['power'] / meter_data['emeters'][MeterNo]['voltage']
+      self._dbusservice['/Ac/L1/Voltage'] = voltage
       if config['DEFAULT'].get('GridOrPV') == 'grid':
-        self._dbusservice['/Ac/L1/Power'] = meter_data['emeters'][MeterNo]['power']
-        self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total'] / 1000)
-        self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total_returned'] / 1000)
+        self._dbusservice['/Ac/L1/Energy/Forward'] = energy_fwd
+        self._dbusservice['/Ac/L1/Energy/Reverse'] = energy_ret
       else: # pvinverter, implies CT is connected towards the PV inverter as a load
         current = -current
-        self._dbusservice['/Ac/L1/Power'] = -meter_data['emeters'][MeterNo]['power']
-        self._dbusservice['/Ac/L1/Energy/Forward'] = (meter_data['emeters'][MeterNo]['total_returned'] / 1000)
-        self._dbusservice['/Ac/L1/Energy/Reverse'] = (meter_data['emeters'][MeterNo]['total'] / 1000)
+        power = -power
+        self._dbusservice['/Ac/L1/Energy/Forward'] = energy_ret
+        self._dbusservice['/Ac/L1/Energy/Reverse'] = energy_fwd
+
       self._dbusservice['/Ac/L1/Current'] = current
-      self._dbusservice['/Ac/Power'] = self._dbusservice['/Ac/L1/Power']
+      self._dbusservice['/Ac/Power'] = self._dbusservice['/Ac/L1/Power'] = power
       self._dbusservice['/Ac/Energy/Forward'] = self._dbusservice['/Ac/L1/Energy/Forward']
       self._dbusservice['/Ac/Energy/Reverse'] = self._dbusservice['/Ac/L1/Energy/Reverse']
 
