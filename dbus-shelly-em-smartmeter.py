@@ -16,7 +16,7 @@ sys.path.insert(1, os.path.join(os.path.dirname(__file__), '/opt/victronenergy/d
 from vedbus import VeDbusService
 
 class DbusShellyemService:
-  def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly EM HTTP JSON service'):
+  def __init__(self, servicename, paths, productname='Shelly EM', connection='Shelly HTTP JSON service'):
     config = self._getConfig()
     deviceinstance = int(config['DEFAULT'].get('Deviceinstance', 40))
     self._dbusservice = VeDbusService("{}.http_{:02d}".format(servicename, deviceinstance), register=False)
@@ -124,8 +124,8 @@ class DbusShellyemService:
         voltage = meter_data['emeters'][MeterNo]['voltage']
         power = meter_data['emeters'][MeterNo]['power']
         current = power / voltage
-        energy_fwd = (meter_data['emeters'][MeterNo]['total'] / 1000)
-        energy_ret = (meter_data['emeters'][MeterNo]['total_returned'] / 1000)
+        energy_fwd = meter_data['emeters'][MeterNo]['total'] / 1000
+        energy_ret = meter_data['emeters'][MeterNo]['total_returned'] / 1000
       else:
         # Detect PM or 1PM device
         d = meter_data.get('pm1:0', meter_data.get('switch:0', None))
@@ -133,8 +133,8 @@ class DbusShellyemService:
           voltage = d['voltage']
           current = d['current']
           power = d['apower']
-          energy_fwd = d['aenergy'].get('total')
-          energy_ret = d.get('ret_aenergy', d['aenergy']).get('total')
+          energy_fwd = d['aenergy'].get('total') / 1000
+          energy_ret = d.get('ret_aenergy', d['aenergy']).get('total') / 1000
 
       # send data to DBus
       self._dbusservice['/Ac/L1/Voltage'] = voltage
